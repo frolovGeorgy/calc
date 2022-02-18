@@ -1,30 +1,67 @@
 import operator
 from typing import Dict, List, Callable, Union
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
+from fastapi.exceptions import RequestValidationError
 
-from db import Calculator
+from db import Calculator, history, Record
 
 router = APIRouter()
 
 
-@router.post('/calc')
+@router.post(
+    '/calc',
+    response_description="Random phrase",
+    description="Get random phrase from database",
+)
 async def calculate(calculator: Calculator):
     priority: Dict[str, List[Union[int, Callable, None]]] = {
         '(': [0, None],
         '+': [1, operator.add],
         '-': [1, operator.sub],
+        '_': [1, operator.neg],
         '*': [2, operator.mul],
         '/': [2, operator.truediv]
     }
 
-    exp = calculator.expression.split()
+    exp_list = []
+    last_token = ''
+
+    for token in calculator.expression.replace(' ', ''):
+        if token == '-':
+            if not last_token:
+                exp_list.append('_')
+
+            else:
+                exp_list.append(last_token)
+                last_token = ''
+                exp_list.append(token)
+
+        elif token == '+':
+            if last_token:
+                exp_list.append(last_token)
+                last_token = ''
+                exp_list.append(token)
+
+        elif token in '*/()':
+            if last_token:
+                exp_list.append(last_token)
+                last_token = ''
+            exp_list.append(token)
+
+        else:
+            last_token += token
+
+    else:
+        if last_token:
+            exp_list.append(last_token)
+
     operators = []
     postfix = []
     stack = []
 
     try:
-        for sym in exp:
+        for sym in exp_list:
             if sym.lstrip('-').replace('.', '').isdigit():
                 postfix.append(sym)
 
@@ -46,14 +83,19 @@ async def calculate(calculator: Calculator):
             postfix.append(operators.pop())
 
         for elem in postfix:
-            if elem in priority and len(stack) >= 2:
+            if elem == '_':
+                stack.append(priority[elem][1](stack.pop()))
+
+            elif elem in priority:
                 stack.append(priority[elem][1](stack.pop(-2), stack.pop()))
-            elif elem == '-' and len(stack) == 1:
-                stack.append(-stack.pop())
+
             else:
                 stack.append(float(elem))
 
     except (ValueError, IndexError, KeyError):
-        raise HTTPException(status_code=422, detail='Wrong expression please correct it and try again')
+        history.add_record(Record(request=calculator.expression, response='', status='fail'))
+        raise RequestValidationError
 
-    return {"result": stack[0]}
+    history.add_record(Record(request=calculator.expression, response=str(stack[0]), status='success'))
+
+    return {"response": stack[0]}

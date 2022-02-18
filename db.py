@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel, Field
 
@@ -7,35 +7,46 @@ class Calculator(BaseModel):
     expression: str = Field(
         ...,
         tite='Input expression',
-        regex='^(?:[-+]\s)?(?:[(]\s)?(?:[-+]?\s?)?\d*[.]?\d*(?:\s(?:[)])?(?:[-+*/])?(?:[(])?(?:\d*[.]?\d*)?)*$',
+        regex='^(?:[-+]\s*)?(?:[(]\s*)?(?:[-+]?\s*)?\d*[.]?\d*(?:\s*(?:[)])?(?:[-+*/])?(?:[(])?(?:\d*[.]?\d*)?)*$',
     )
 
 
-class CalculationHistory:
+class Record:
+    request: str = Field(..., description='Client request')
+    response: str = Field(..., description='Server response')
+    status: str = Field(..., description='Response\'s status')
+
+    def __init__(self, request, response, status):
+        self.request = request
+        self.response = response
+        self.status = status
+
+
+class RecordsHistory:
 
     def __init__(self):
-        self.history = []
+        self.history: List[Record] = []
 
-    def get(self, num: int = 30, status: Optional[str] = None):
+    def get_history(self, num: int = 30, status: Optional[str] = None):
         if status == 'success':
-            result = [filter(lambda x: x['status'] == 'success', self.history[:30])]
+            result = list(filter(lambda x: x.status == 'success', self.history[:num]))
 
         elif status == 'fail':
-            result = [filter(lambda x: x['status'] == 'fail', self.history[:30])]
+            result = list(filter(lambda x: x.status == 'fail', self.history[:num]))
+
+        elif status is None:
+            result = self.history[:num]
 
         else:
-            result = self.history[:num]
+            raise ValueError('Status can be only success, fail or None')
 
         return result
 
-    def add(self, request: str, response: str, status: str):
+    def add_record(self, record: Record):
         if len(self.history) >= 30:
             self.history.pop(0)
 
-        self.history.append(
-            {
-                'request': request,
-                'response': response,
-                'status': status
-            }
-        )
+        self.history.append(record)
+
+
+history = RecordsHistory()
