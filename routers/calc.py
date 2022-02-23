@@ -23,7 +23,7 @@ async def calculate(calculator: Calculator):
         '*': [2, operator.mul],
         '/': [2, operator.truediv]
     }
-
+    # TODO check ZeroDivisionError
     exp_list = []
     last_token = ''
 
@@ -98,4 +98,4 @@ async def calculate(calculator: Calculator):
 
     history.add_record(Record(request=calculator.expression, response=str(stack[0]), status='success'))
 
-    return {"response": stack[0]}
+    return {"response": round(stack[0], 3)}

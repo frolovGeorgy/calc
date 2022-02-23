@@ -6,10 +6,11 @@ from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 
 from db import history, Record
-from routers import calc
+from routers import calc, tic_tac_toe
 
 app = FastAPI()
 app.include_router(calc.router)
+app.include_router(tic_tac_toe.router)
 
 
 @app.exception_handler(RequestValidationError)
