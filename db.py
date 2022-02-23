@@ -1,15 +1,8 @@
 import random
 from typing import Optional, List, Tuple, Dict
 
-from pydantic import BaseModel, Field
-
-
-class Calculator(BaseModel):
-    expression: str = Field(
-        ...,
-        tite='Input expression',
-        regex='^(?:[-+]\s*)?(?:[(]\s*)?(?:[-+]?\s*)?\d*[.]?\d*(?:\s*(?:[)])?(?:[-+*/])?(?:[(])?(?:\d*[.]?\d*)?)*$',
-    )
+from fastapi import HTTPException
+from pydantic import Field
 
 
 class Record:
@@ -39,7 +32,7 @@ class RecordsHistory:
             result = self.history[:num]
 
         else:
-            raise ValueError('Status can be only success, fail or None')
+            raise HTTPException(status_code=422, detail='Status can be only success or fail')
 
         return result
 
@@ -66,7 +59,10 @@ class TicTacGame:
         self._row: int = len(field)
         self._win_condition: int = win_condition
         if self._win_condition > max(self._col, self._row):
-            raise ValueError('Win condition is too small. Please increase field size or decrease win condition.')
+            raise HTTPException(
+                status_code=422,
+                detail='Win condition is too small. Please increase field size or decrease win condition.'
+            )
 
         self._moves: int = 0
         self._tuns_history = {}

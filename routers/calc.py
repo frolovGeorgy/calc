@@ -1,20 +1,26 @@
 import operator
 from typing import Dict, List, Callable, Union
 
-from fastapi import APIRouter
-from fastapi.exceptions import RequestValidationError
+from fastapi import APIRouter, Query
+from fastapi.exceptions import HTTPException
 
-from db import Calculator, history, Record
+from db import history, Record
 
 router = APIRouter()
 
 
-@router.post(
+@router.get(
     '/calc',
     response_description="Random phrase",
     description="Get random phrase from database",
 )
-async def calculate(calculator: Calculator):
+async def calculate(
+        expression: str = Query(
+            ...,
+            tite='Input expression',
+            regex='^(?:[-+]\s*)?(?:[(]\s*)?(?:[-+]?\s*)?\d*[.]?\d*(?:\s*(?:[)])?(?:[-+*/])?(?:[(])?(?:\d*[.]?\d*)?)*$',
+        )
+):
     priority: Dict[str, List[Union[int, Callable, None]]] = {
         '(': [0, None],
         '+': [1, operator.add],
@@ -27,7 +33,7 @@ async def calculate(calculator: Calculator):
     exp_list = []
     last_token = ''
 
-    for token in calculator.expression.replace(' ', ''):
+    for token in expression.replace(' ', ''):
         if token == '-':
             if not last_token:
                 exp_list.append('_')
@@ -92,10 +98,14 @@ async def calculate(calculator: Calculator):
             else:
                 stack.append(float(elem))
 
-    except (ValueError, IndexError, KeyError):
-        history.add_record(Record(request=calculator.expression, response='', status='fail'))
-        raise RequestValidationError
+    except (ValueError, IndexError, KeyError, TypeError):
+        history.add_record(Record(request=expression, response='', status='fail'))
+        raise HTTPException(status_code=422, detail='Wrong expression')
 
-    history.add_record(Record(request=calculator.expression, response=str(stack[0]), status='success'))
+    except ZeroDivisionError:
+        history.add_record(Record(request=expression, response='', status='fail'))
+        raise HTTPException(status_code=422, detail='Division by zero')
+
+    history.add_record(Record(request=expression, response=str(stack[0]), status='success'))
 
     return {"response": round(stack[0], 3)}

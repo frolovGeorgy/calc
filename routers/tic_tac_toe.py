@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, HTTPException
 
 from db import TicTacGame
 
@@ -17,6 +17,9 @@ async def tic_tac_toe(
         )
 ):
     col, row = field_size.split('*')
+    if int(col) < 3 or int(row) < 3:
+        raise HTTPException(status_code=422, detail='Field must be at least 3 by 3')
+
     field = [[' ' for _ in range(int(col))] for _ in range(int(row))]
     game = TicTacGame(field, win_condition)
     result = game.start_game()

@@ -23,17 +23,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
-@app.exception_handler(ValueError)
-async def value_error_exception_handler(request: Request, exc: ValueError):
-    return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=jsonable_encoder({"detail": exc.args[0]}),
-    )
-
-
 @app.get('/history')
 async def calculation_history(
-        num: int = Query(
+        limit: int = Query(
             30,
             description='Number of records. Default value is 30. It can be in range from 1 to 30.',
             ge=1,
@@ -41,7 +33,7 @@ async def calculation_history(
         ),
         record_status: Optional[str] = Query(
             None,
-            description='With what status to display records. Default value is "None". It can be "success" or "fail".',
+            description='With what status to display records. It can be "success" or "fail".',
         )
 ):
-    return {'history': history.get_history(num, record_status)}
+    return {'history': history.get_history(limit, record_status)}
